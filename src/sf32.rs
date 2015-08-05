@@ -6,7 +6,7 @@ use std::mem::transmute;
 /// This is implemented as a single-value struct wrapping a `f32`
 /// value, so that the arithmetic operators can be reimplemented.
 ///
-/// A `sf64` can be dereferenced to s hardware floating-point
+/// A `sf32` can be dereferenced to s hardware floating-point
 /// number.
 #[allow(non_camel_case_types)]
 pub struct sf32 { value: u32 }
@@ -34,6 +34,11 @@ impl sf32 {
             0 => 0,
             i => (i | 0x80000000)
         }
+    }
+
+    #[inline]
+    fn exponent(&self) -> i16 {
+        ((self.value >> 23) & 0xff) as i16 - 127
     }
 }
 
