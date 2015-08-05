@@ -20,9 +20,10 @@ impl sf32 {
     }
 
     #[inline]
-    fn sign(&self) -> i32 {
-        (self.value & 0x80000000) as i32
+    fn sign(&self) -> i8 {
+        if self.value >> 31 == 0 { 1 } else { -1 }
     }
+
     #[inline]
     fn mantissa(&self) -> u32 {
         match self.value & 0x7FFFFFFF {

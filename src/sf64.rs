@@ -22,9 +22,10 @@ impl sf64 {
     }
 
     #[inline]
-    fn sign(&self) -> i64 {
-        (self.value & 0x80000000) as i64
+    fn sign(&self) -> i8 {
+        if self.value >> 31 == 0 { 1 } else { -1 }
     }
+
     #[inline]
     fn mantissa(&self) -> u64 {
         match self.value & 0x7FFFFFFF {
