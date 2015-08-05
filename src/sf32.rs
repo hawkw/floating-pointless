@@ -14,13 +14,13 @@ pub struct sf32 { value: u32 }
 impl sf32 {
     /// Creates a new `sf32` from a hardware float.
     #[inline]
-    pub fn from(float: f32) -> Self {
-        sf32 { value: float as u32 }
+    pub fn from_f32(float: f32) -> Self {
+        sf32{ value: unsafe { transmute::<f32,u32>(float) } }
     }
 
     #[inline]
     pub fn to_f32(&self) -> f32 {
-        self.value as f32
+        unsafe { transmute::<u32, f32>(self.value) }
     }
 
     #[inline]
@@ -39,6 +39,57 @@ impl sf32 {
     #[inline]
     fn exponent(&self) -> i16 {
         ((self.value >> 23) & 0xff) as i16 - 127
+    }
+
+    /// Returns the mantissa, exponent, and sign
+    fn parts(&self) -> (u32, i16, i8) {
+        (self.mantissa(), self.exponent(), self.sign())
+    }
+
+    /// Re-packs a floating-point number from a mantissa, exponent,
+    /// and sign
+    fn from_parts(mantissa: u32, exponent: i16, sign: i8) -> Self {
+        unimplemented!()
+    }
+}
+
+static SHIFT_MASKS: [u32; 24] = [
+    0, 1, 3, 7, 0xf,
+    0x1f, 0x3f, 0x7f, 0xff,
+    0x1ff, 0x3ff, 0x7ff, 0xfff,
+    0x1fff, 0x3fff, 0x7fff, 0xffff,
+    0x1ffff, 0x3ffff, 0x7ffff, 0xfffff,
+    0x1fffff, 0x3fffff, 0x7fffff
+];
+
+static SHIFT_HO_MASKS: [u32; 24] = [
+    0, 1, 2, 4, 0x8,
+    0x10, 0x20, 0x40, 0x80,
+    0x100, 0x200, 0x400, 0x800,
+    0x1000, 0x2000, 0x4000, 0x8000,
+    0x10000, 0x20000, 0x40000, 0x80000,
+    0x100000, 0x200000, 0x400000
+];
+
+
+fn ieee_rounding_shift(mantissa: u32, n: usize) -> u32 {
+    assert!(n <= 23, "cannot shift a mantissa more than 23 bits");
+    // shift the value to the right the specified number of bits
+    let result = mantissa >> n;
+
+    // extract the bits shifted out using the bitmask corresponding
+    // to the number of bits to shift, and use it to determine how
+    // to round the result value
+    match mantissa & SHIFT_MASKS[n] {
+        // if bits shifted out is greater than half the LO bit,
+        // round the value up by 1
+        i if i > SHIFT_HO_MASKS[n]  => result + 1,
+        // if the bits shifted out are equal to exactly half
+        // the LO bit, then round to the nearest number
+        // whose LO bit is 0
+        i if i == SHIFT_HO_MASKS[n] => result + (result & 1),
+        // otherwise, the value is already truncated
+        _ => result
     }
 }
 
