@@ -1,9 +1,13 @@
 use std::ops;
+use std::mem::transmute;
+
 /// A 32-bbit floating-point number with software arithmetic operations.
 ///
 /// This is implemented as a single-value struct wrapping a `f32`
 /// value, so that the arithmetic operators can be reimplemented.
 ///
+/// A `sf64` can be dereferenced to s hardware floating-point
+/// number.
 #[allow(non_camel_case_types)]
 pub struct sf32 { value: u32 }
 
@@ -34,17 +38,17 @@ impl sf32 {
 }
 
 impl ops::Deref for sf32 {
-    type Target = u32;
+    type Target = f32;
 
-    fn deref<'a>(&'a self) -> &'a u32 {
-        &self.value
+    fn deref<'a>(&'a self) -> &'a f32 {
+        unsafe { transmute::<&'a u32, &'a f32>(&self.value) }
     }
 }
 
 impl ops::DerefMut for sf32 {
 
-    fn deref_mut<'a>(&'a mut self) -> &'a mut u32 {
-        &mut self.value
+    fn deref_mut<'a>(&'a mut self) -> &'a mut f32 {
+        unsafe { transmute::<&'a mut u32, &'a mut f32>(&mut self.value) }
     }
 }
 
@@ -52,7 +56,7 @@ impl ops::BitXor for sf32 {
     type Output = Self;
 
     fn bitxor(self, rhs: Self) -> Self {
-        sf32 { value: *self ^ *rhs }
+        sf32 { value: self.value ^ rhs.value }
     }
 }
 
@@ -60,7 +64,7 @@ impl ops::BitAnd for sf32 {
     type Output = Self;
 
     fn bitand(self, rhs: Self) -> Self {
-        sf32 { value: *self & *rhs }
+        sf32 { value: self.value & rhs.value }
     }
 }
 

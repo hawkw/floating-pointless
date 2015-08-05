@@ -1,4 +1,6 @@
 use std::ops;
+use std::mem::transmute;
+
 /// A 64-bbit floating-point number with software arithmetic operations.
 ///
 /// This is implemented as a single-value struct wrapping a `f64`
@@ -36,24 +38,17 @@ impl sf64 {
 }
 
 impl ops::Deref for sf64 {
-    type Target = u64;
+    type Target = f64;
 
-    fn deref<'a>(&'a self) -> &'a u64 {
-        &self.value
+    fn deref<'a>(&'a self) -> &'a f64 {
+        unsafe { transmute::<&'a u64, &'a f64>(&self.value) }
     }
 }
 
 impl ops::DerefMut for sf64 {
-    fn deref_mut<'a>(&'a mut self) -> &'a mut u64 {
-        &mut self.value
-    }
-}
 
-impl ops::Add for sf64 {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self {
-        unimplemented!()
+    fn deref_mut<'a>(&'a mut self) -> &'a mut f64 {
+        unsafe { transmute::<&'a mut u64, &'a mut f64>(&mut self.value) }
     }
 }
 
@@ -61,7 +56,7 @@ impl ops::BitXor for sf64 {
     type Output = Self;
 
     fn bitxor(self, rhs: Self) -> Self {
-        sf64 { value: *self ^ *rhs }
+        sf64 { value: self.value ^ rhs.value }
     }
 }
 
@@ -69,7 +64,16 @@ impl ops::BitAnd for sf64 {
     type Output = Self;
 
     fn bitand(self, rhs: Self) -> Self {
-        sf64 { value: *self & *rhs }
+        sf64 { value: self.value & rhs.value }
+    }
+}
+
+
+impl ops::Add for sf64 {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        unimplemented!()
     }
 }
 
