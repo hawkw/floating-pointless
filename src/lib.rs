@@ -9,6 +9,20 @@ use std::ops;
 /// number.
 pub struct SoftFloat { value: f64 }
 
+impl SoftFloat {
+    /// Creates a new `SoftFloat` from a hardware float.
+    #[inline]
+    pub fn from(float: f64) -> Self {
+        SoftFloat { value: float }
+    }
+
+    /// Access the raw binary value of a SoftFloat.
+    #[inline]
+    fn raw_value(&self) -> u64 {
+        self.value as u64
+    }
+}
+
 impl ops::Deref for SoftFloat {
     type Target = f64;
     fn deref<'a>(&'a self) -> &'a f64 {
@@ -19,18 +33,6 @@ impl ops::Deref for SoftFloat {
 impl ops::DerefMut for SoftFloat {
     fn deref_mut<'a>(&'a mut self) -> &'a mut f64 {
         &mut self.value
-    }
-}
-
-impl SoftFloat {
-    /// Creates a new `SoftFloat` from a hardware float.
-    pub fn from(float: f64) -> Self {
-        SoftFloat { value: float }
-    }
-
-    /// Access the raw binary value of a SoftFloat.
-    fn raw_value(&self) -> u64 {
-        self.value as u64
     }
 }
 
