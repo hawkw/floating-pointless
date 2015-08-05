@@ -36,6 +36,38 @@ impl ops::DerefMut for SoftFloat {
     }
 }
 
+impl ops::Add for SoftFloat {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        unimplemented!()
+    }
+}
+
+impl ops::Sub for SoftFloat {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self {
+        unimplemented!()
+    }
+}
+
+impl ops::Div for SoftFloat {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self {
+        unimplemented!()
+    }
+}
+
+impl ops::Mul for SoftFloat {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self {
+        unimplemented!()
+    }
+}
+
 #[test]
 fn it_works() {
 }
