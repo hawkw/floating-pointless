@@ -6,31 +6,44 @@ use std::ops;
 ///
 /// A `sf64` can be dereferenced to s hardware floating-point
 /// number.
-pub struct sf64 { value: f64 }
+#[allow(non_camel_case_types)]
+pub struct sf64 { value: u64 }
 
 impl sf64 {
     /// Creates a new `sf64` from a hardware float.
     #[inline]
     pub fn from(float: f64) -> Self {
-        sf64 { value: float }
+        sf64 { value: float as u64 }
     }
 
-    /// Access the raw binary value of a sf64.
     #[inline]
-    fn raw_value(&self) -> u64 {
-        self.value as u64
+    pub fn to_f64(&self) -> f64 {
+        self.value as f64
+    }
+
+    #[inline]
+    fn sign(&self) -> i64 {
+        (self.value & 0x80000000) as i64
+    }
+    #[inline]
+    fn mantissa(&self) -> u64 {
+        match self.value & 0x7FFFFFFF {
+            0 => 0,
+            i => (i | 0x80000000)
+        }
     }
 }
 
 impl ops::Deref for sf64 {
-    type Target = f64;
-    fn deref<'a>(&'a self) -> &'a f64 {
+    type Target = u64;
+
+    fn deref<'a>(&'a self) -> &'a u64 {
         &self.value
     }
 }
 
 impl ops::DerefMut for sf64 {
-    fn deref_mut<'a>(&'a mut self) -> &'a mut f64 {
+    fn deref_mut<'a>(&'a mut self) -> &'a mut u64 {
         &mut self.value
     }
 }
@@ -43,11 +56,29 @@ impl ops::Add for sf64 {
     }
 }
 
+impl ops::BitXor for sf64 {
+    type Output = Self;
+
+    fn bitxor(self, rhs: Self) -> Self {
+        sf64 { value: *self ^ *rhs }
+    }
+}
+
+impl ops::BitAnd for sf64 {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self {
+        sf64 { value: *self & *rhs }
+    }
+}
+
 impl ops::Sub for sf64 {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self {
-        unimplemented!()
+        // invert the sign of the right-hand side
+        let inverted = rhs ^ sf64{ value: 0x80000000 };
+        self + inverted // add self to the inverted RHS
     }
 }
 
