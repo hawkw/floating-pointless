@@ -1,4 +1,5 @@
 use std::ops;
+use std::fmt;
 use std::mem::transmute;
 
 /// A 32-bbit floating-point number with software arithmetic operations.
@@ -9,6 +10,7 @@ use std::mem::transmute;
 /// A `sf32` can be dereferenced to s hardware floating-point
 /// number.
 #[allow(non_camel_case_types)]
+#[derive(Debug)]
 pub struct sf32 { value: u32 }
 
 impl sf32 {
@@ -54,6 +56,13 @@ impl sf32 {
         sf32 { value: sign_segmt | exp_segmt | (mantissa & 0x7fffff) }
     }
 }
+
+impl fmt::Display for sf32 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.to_f32())
+    }
+}
+
 
 static SHIFT_MASKS: [u32; 24] = [
     0, 1, 3, 7, 0xf,
@@ -140,10 +149,8 @@ impl ops::Add for sf32 {
     /// # use floating_pointless::sf32::sf32;
     /// let a: f32 = 1.0;
     /// let b: f32 = 2.0;
-    /// assert_eq!(
-    ///     sf32::from_f32(a) + sf32::from_f32(b),
-    ///     a + b
-    /// )
+    /// let result = sf32::from_f32(a) + sf32::from_f32(b);
+    /// assert_eq!(*result, a + b)
     /// ```
     fn add(self, rhs: Self) -> Self {
         let (lmantissa, lexp, lsign) = self.parts();
@@ -223,10 +230,8 @@ impl ops::Sub for sf32 {
     ///  # use floating_pointless::sf32::sf32;
     /// let a: f32 = 1.0;
     /// let b: f32 = 2.0;
-    /// assert_eq!(
-    ///     sf32::from_f32(a) - sf32::from_f32(b),
-    ///     a - b
-    /// )
+    /// let result = sf32::from_f32(a) - sf32::from_f32(b);
+    /// assert_eq!(*result, a - b)
     /// ```
     fn sub(self, rhs: Self) -> Self {
         // invert the sign of the right-hand side
