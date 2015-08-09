@@ -48,7 +48,7 @@ impl sf32 {
 
     /// Re-packs a floating-point number from a mantissa, exponent,
     /// and sign
-    fn from_parts(mantissa: u32, exponent: u16, sign: i8) -> Self {
+    fn from_parts(mantissa: u32, exponent: i16, sign: i8) -> Self {
         let sign_segmt: u32 = (sign as u32) << 31;
         let exp_segmt: u32 = (exponent as u32 + 127u32) << 23;
         sf32 { value: sign_segmt | exp_segmt | (mantissa & 0x7fffff) }
@@ -74,7 +74,7 @@ static SHIFT_HO_MASKS: [u32; 24] = [
 ];
 
 
-fn ieee_rounding_shift(mantissa: u32, n: usize) -> u32 {
+fn ieee_rounding_shift(mantissa: u32, n: i16) -> u32 {
     assert!(n <= 23, "cannot shift a mantissa more than 23 bits");
     // shift the value to the right the specified number of bits
     let result = mantissa >> n;
@@ -82,14 +82,14 @@ fn ieee_rounding_shift(mantissa: u32, n: usize) -> u32 {
     // extract the bits shifted out using the bitmask corresponding
     // to the number of bits to shift, and use it to determine how
     // to round the result value
-    match mantissa & SHIFT_MASKS[n] {
+    match mantissa & SHIFT_MASKS[n as usize] {
         // if bits shifted out is greater than half the LO bit,
         // round the value up by 1
-        i if i > SHIFT_HO_MASKS[n]  => result + 1,
+        i if i > SHIFT_HO_MASKS[n as usize]  => result + 1,
         // if the bits shifted out are equal to exactly half
         // the LO bit, then round to the nearest number
         // whose LO bit is 0
-        i if i == SHIFT_HO_MASKS[n] => result + (result & 1),
+        i if i == SHIFT_HO_MASKS[n as usize] => result + (result & 1),
         // otherwise, the value is already truncated
         _ => result
     }
@@ -134,6 +134,17 @@ impl ops::Add for sf32 {
     /// Add two software floating-point numbers, returning a third
     /// floating-point number. Infinity and NaNs are propagated to
     /// the result.
+    ///
+    /// ## Example
+    /// ```
+    /// # use floating_pointless::sf32::sf32;
+    /// let a: f32 = 1.0;
+    /// let b: f32 = 2.0;
+    /// assert_eq!(
+    ///     sf32::from_f32(a) + sf32::from_f32(b),
+    ///     a + b
+    /// )
+    /// ```
     fn add(self, rhs: Self) -> Self {
         let (lmantissa, lexp, lsign) = self.parts();
         let (rmantissa, rexp, rsign) = rhs.parts();
@@ -141,19 +152,82 @@ impl ops::Add for sf32 {
             // both operands are infinity with the same signs, return infinity
             (127, 0, 127, 0) if rsign == lsign => self,
             // both operands are infinity with different signs, return NaN
-            (127, 0, 127, 0) => 0x7fc00000,
+            (127, 0, 127, 0) => sf32{ value: 0x7fc00000 },
             // left operand is NaN, propagate the same NaN
             (127, _, _, _) => self,
             // Right operand is NaN, propagate it
             (_, _, 127, _) => rhs,
-            _ => unimplemented!() // todo: finish this
+            // Neither side is NaN, actually perform the add
+            _ => {
+                // denormalise the smaller mantissa
+                let (dexp, rmant, lmant) = if rexp > lexp {
+                    (rexp,
+                     rmantissa,
+                     ieee_rounding_shift(lmantissa, (rexp - lexp)))
+                } else if rexp < lexp {
+                    (lexp,
+                     ieee_rounding_shift(rmantissa, (lexp - rexp)),
+                     lmantissa)
+                } else {
+                    (rexp, rmantissa, lmantissa)
+                };
+                // add the mantissas
+                let (dmant, dsign) = if rsign == lsign {
+                    // if the signs are opposite, we actually subtract
+                    if lmant > rmant {
+                        (lmant - rmant, lsign)
+                    } else {
+                        (rmant - lmant, rsign)
+                    }
+                } else {
+                    // if the signs are the same we add
+                    (lmant + rmant, lsign)
+                };
+                // finally, we have to normalise the result
+                if dmant >= 0x1000000 {
+                    // round so the mantissa doesn't overflow into bit 24
+                    sf32::from_parts(
+                        ieee_rounding_shift(dmant, 1),
+                        dexp + 1,
+                        dsign)
+                } else if dmant == 0 {
+                    // if the mantissa is zero, just zero everything.
+                    // this is faster and also prevents weird zeros that don't
+                    // equal each other
+                    sf32::from_parts(0,0,0)
+                } else {
+                    // if the HO bit is clear, normalise by shifting up
+                    // and decrementing the exponent
+                    let mut mant = dmant;
+                    let mut exp = dexp;
+                    while (mant < 0x800000) && (exp > -127) {
+                        // TODO: find a better/more functional way to
+                        // express this
+                        mant = mant << 1;
+                        exp = exp -1;
+                    }
+                    sf32::from_parts(mant, exp, dsign)
+
+                }
+            }
         }
     }
 }
 
 impl ops::Sub for sf32 {
     type Output = Self;
-
+    /// Subtract two floating-point numbers.
+    ///
+    /// ## Example
+    /// ```
+    ///  # use floating_pointless::sf32::sf32;
+    /// let a: f32 = 1.0;
+    /// let b: f32 = 2.0;
+    /// assert_eq!(
+    ///     sf32::from_f32(a) - sf32::from_f32(b),
+    ///     a - b
+    /// )
+    /// ```
     fn sub(self, rhs: Self) -> Self {
         // invert the sign of the right-hand side
         let inverted = rhs ^ sf32{ value: 0x80000000 };
