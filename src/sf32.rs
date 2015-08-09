@@ -48,8 +48,10 @@ impl sf32 {
 
     /// Re-packs a floating-point number from a mantissa, exponent,
     /// and sign
-    fn from_parts(mantissa: u32, exponent: i16, sign: i8) -> Self {
-        unimplemented!()
+    fn from_parts(mantissa: u32, exponent: u16, sign: i8) -> Self {
+        let sign_segmt: u32 = (sign as u32) << 31;
+        let exp_segmt: u32 = (exponent as u32 + 127u32) << 23;
+        sf32 { value: sign_segmt | exp_segmt | (mantissa & 0x7fffff) }
     }
 }
 
@@ -127,8 +129,25 @@ impl ops::BitAnd for sf32 {
 impl ops::Add for sf32 {
     type Output = Self;
 
+    /// Add two floating-point numbers.
+    ///
+    /// Add two software floating-point numbers, returning a third
+    /// floating-point number. Infinity and NaNs are propagated to
+    /// the result.
     fn add(self, rhs: Self) -> Self {
-        unimplemented!()
+        let (lmantissa, lexp, lsign) = self.parts();
+        let (rmantissa, rexp, rsign) = rhs.parts();
+        match (lexp, lmantissa, rexp, rmantissa) {
+            // both operands are infinity with the same signs, return infinity
+            (127, 0, 127, 0) if rsign == lsign => self,
+            // both operands are infinity with different signs, return NaN
+            (127, 0, 127, 0) => 0x7fc00000,
+            // left operand is NaN, propagate the same NaN
+            (127, _, _, _) => self,
+            // Right operand is NaN, propagate it
+            (_, _, 127, _) => rhs,
+            _ => unimplemented!() // todo: finish this
+        }
     }
 }
 
