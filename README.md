@@ -1,5 +1,7 @@
 floating-pointless
 ------------------
+[![No Maintenance Intended](http://unmaintained.tech/badge.svg)](http://unmaintained.tech/)
+
 
 Software floating-point operations in Rust.
 
